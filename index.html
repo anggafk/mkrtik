@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Latihan Topologi - Winbox 4 Style (Light)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-app: #f2f3f5;
+    --panel-bg: #ffffff;
+    --panel-border: #e2e5ea;
+    --titlebar-bg: #f7f8fa;
+    --text: #1c1f24;
+    --text-dim: #6b7280;
+    --accent: #009e87;
+    --accent-bg: rgba(0,158,135,0.10);
+    --pending: #c9820a;
+    --pending-bg: rgba(201,130,10,0.10);
+    --danger: #d64545;
+    --terminal-bg: #14161a;
+    --terminal-text: #e4e6eb;
+    --sans: 'Inter', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg-app);
+    color: var(--text);
+    font-family: var(--sans);
+    padding: 20px;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 { font-size: 18px; font-weight: 600; margin: 0; }
+  header p { margin: 3px 0 0; font-size: 12.5px; color: var(--text-dim); }
+  .status-pill {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: var(--pending-bg);
+    color: var(--pending);
+    white-space: nowrap;
+  }
+  .status-pill.connected { background: var(--accent-bg); color: var(--accent); }
+
+  .header-actions { display: flex; align-items: center; gap: 10px; }
+  .reset-btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel-bg);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .reset-btn:hover { color: var(--text); border-color: var(--text-dim); }
+
+  .win {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(20,22,26,0.06);
+    margin-bottom: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .win-title {
+    background: var(--titlebar-bg);
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--panel-border);
+    flex-shrink: 0;
+  }
+  .win-dots { display: flex; gap: 6px; }
+  .win-dots span { width: 8px; height: 8px; border-radius: 50%; background: #d7dbe1; }
+  .win-title-text { font-size: 12px; font-weight: 500; color: var(--text-dim); flex: 1; }
+  .win-body { padding: 14px; }
+  .win-body.flush { padding: 0; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  .brief-body {
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-dim);
+  }
+  .brief-body b { color: var(--text); font-weight: 600; }
+  .brief-body code { font-family: var(--mono); color: var(--accent); background: var(--accent-bg); padding: 1px 5px; border-radius: 4px; }
+
+  /* ---- Topology: flex row, chip labels sit on the line right next to the router ---- */
+  .topology {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 24px 26px;
+  }
+  .node { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 auto; }
+  .node-icon {
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    background: var(--bg-app);
+    border: 1px solid var(--panel-border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .node-icon svg {
+    width: 24px; height: 24px;
+    stroke: var(--text-dim);
+    fill: none;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .link-segment { flex: 1 1 120px; max-width: 200px; height: 52px; position: relative; display: flex; align-items: center; }
+  .link-segment.wan { justify-content: flex-end; }
+  .link-segment.lan { justify-content: flex-start; }
+  .line-full { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--panel-border); transform: translateY(-50%); }
+  .line-full.ok { background: var(--accent); }
+  .chip {
+    position: relative;
+    z-index: 1;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    margin: 0 3px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    line-height: 1.35;
+    text-align: center;
+  }
+  .node-text { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 18px; }
+  .node-label { font-size: 13px; font-weight: 700; color: var(--text); }
+  .node-value { font-size: 12.5px; font-weight: 700; color: var(--text); }
+  .node-value.dim { color: var(--text-dim); font-weight: 500; }
+
+  .main { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: stretch; }
+  @media (max-width: 860px) { .main { grid-template-columns: 1fr; } }
+
+  #terminal {
+    flex: 1;
+    min-height: 290px;
+    overflow-y: auto;
+    background: var(--terminal-bg);
+    color: var(--terminal-text);
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .l-cmd { color: var(--terminal-text); }
+  .l-cmd .prompt { color: #35e0c0; }
+  .l-out { color: #9aa3b0; }
+  .l-err { color: #ff8080; }
+  .l-ok { color: #35e0c0; font-weight: 600; }
+  #inputRow {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--terminal-bg);
+    border-top: 1px solid #24272e;
+    flex-shrink: 0;
+  }
+  #inputRow .prompt { color: #35e0c0; font-family: var(--mono); font-size: 12.5px; margin-right: 8px; }
+  #cmdInput {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--terminal-text); font-family: var(--mono); font-size: 12.5px;
+  }
+
+  .right-stack { display: flex; flex-direction: column; gap: 16px; }
+  .right-stack > .win { margin-bottom: 0; }
+
+  .field-row { display: flex; flex-direction: column; gap: 10px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 11.5px; color: var(--text-dim); }
+  .field input {
+    background: var(--bg-app);
+    border: 1px solid var(--panel-border);
+    border-radius: 7px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    outline: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  .check-area { display: flex; flex-direction: column; gap: 8px; }
+  .check-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  .check-btn:hover { filter: brightness(1.08); }
+
+  .score-line { font-family: var(--mono); font-size: 12px; color: var(--text-dim); text-align: center; }
+  .score-line b { color: var(--text); }
+
+  /* ---- Result modal ---- */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(20,22,26,0.45);
+    align-items: center; justify-content: center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    width: 440px;
+    max-width: 100%;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.28);
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px;
+    background: var(--titlebar-bg);
+    border-bottom: 1px solid var(--panel-border);
+    font-weight: 600; font-size: 13.5px;
+  }
+  .modal-close { background: none; border: none; font-size: 18px; line-height: 1; cursor: pointer; color: var(--text-dim); }
+  .modal-body { padding: 16px 18px 18px; }
+  .modal-status-pill {
+    display: inline-block;
+    font-family: var(--mono); font-size: 11.5px;
+    padding: 5px 12px; border-radius: 20px;
+    background: var(--pending-bg); color: var(--pending);
+    margin-bottom: 16px;
+  }
+  .modal-status-pill.connected { background: var(--accent-bg); color: var(--accent); }
+  .modal-columns { display: flex; gap: 22px; }
+  .modal-col { flex: 1; }
+  .modal-col-title { font-size: 11.5px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 10px; }
+  .modal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  .modal-list li { font-size: 12.5px; display: flex; align-items: center; gap: 8px; color: var(--text-dim); }
+  .modal-list li .ic {
+    width: 15px; height: 15px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; flex-shrink: 0;
+  }
+  .modal-list li.pass { color: var(--text); }
+  .modal-list li.pass .ic { background: var(--accent); color: #fff; }
+  .modal-list li.fail .ic { background: rgba(214,69,69,0.12); color: var(--danger); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Latihan Konfigurasi Dasar Router dengan CLI</h1>
+    </div>
+    <div class="header-actions">
+      <button class="reset-btn" id="resetBtn">Ganti Soal</button>
+      <div class="status-pill" id="statusPill">Belum Terhubung</div>
+    </div>
+  </header>
+
+  <div class="win">
+    <div class="win-title">
+      <div class="win-dots"><span></span><span></span><span></span></div>
+      <div class="win-title-text">Soal Latihan</div>
+    </div>
+    <div class="win-body flush"><div class="brief-body" id="briefBox"></div></div>
+  </div>
+
+  <div class="win">
+    <div class="win-title">
+      <div class="win-dots"><span></span><span></span><span></span></div>
+      <div class="win-title-text">Topologi Jaringan</div>
+    </div>
+    <div class="win-body flush">
+      <div class="topology">
+        <div class="node">
+          <div class="node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3c3 3.5 3 14.5 0 18"/><path d="M12 3c-3 3.5-3 14.5 0 18"/></svg></div>
+          <div class="node-text"><div class="node-label">Internet</div><div class="node-value" id="wanInfo"></div></div>
+        </div>
+        <div class="link-segment wan">
+          <div class="line-full" id="linkWan"></div>
+          <div class="chip" id="wanIfaceLabel"></div>
+        </div>
+        <div class="node">
+          <div class="node-icon"><svg viewBox="0 0 24 24"><rect x="2" y="9" width="20" height="6" rx="1"/><circle cx="7" cy="12" r="0.7" fill="currentColor" stroke="none"/><circle cx="11" cy="12" r="0.7" fill="currentColor" stroke="none"/><line x1="16" y1="9" x2="16" y2="5"/><line x1="19" y1="9" x2="19" y2="6"/></svg></div>
+          <div class="node-text"><div class="node-label" id="hostnameLabel">MikroTik</div></div>
+        </div>
+        <div class="link-segment lan">
+          <div class="chip" id="lanIfaceLabel"></div>
+          <div class="line-full" id="linkLan"></div>
+        </div>
+        <div class="node">
+          <div class="node-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></div>
+          <div class="node-text"><div class="node-label">PC</div><div class="node-value dim" id="pcInfo"></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="win" id="terminalWin">
+      <div class="win-title">
+        <div class="win-dots"><span></span><span></span><span></span></div>
+        <div class="win-title-text" id="terminalTitle">Terminal</div>
+      </div>
+      <div class="win-body flush">
+        <div id="terminal"></div>
+        <div id="inputRow">
+          <span class="prompt" id="promptSpan">[admin@Router] &gt;</span>
+          <input id="cmdInput" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+    </div>
+
+    <div class="right-stack" id="rightStack">
+      <div class="win">
+        <div class="win-title">
+          <div class="win-dots"><span></span><span></span><span></span></div>
+          <div class="win-title-text">Konfigurasi IP PC</div>
+        </div>
+        <div class="win-body">
+          <div class="field-row">
+            <div class="field"><label>Alamat IP</label><input id="pcIp"></div>
+            <div class="field"><label>Subnet Mask</label><input id="pcMask"></div>
+            <div class="field"><label>Gateway</label><input id="pcGw"></div>
+            <div class="field"><label>DNS</label><input id="pcDns"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="check-area">
+        <button class="check-btn" id="checkBtn">Cek Hasil</button>
+        <div class="score-line" id="scoreLine"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>Hasil Konfigurasi</span>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-status-pill" id="modalStatusPill">Belum Terhubung</div>
+      <div class="modal-columns">
+        <div class="modal-col">
+          <div class="modal-col-title">Router</div>
+          <ul class="modal-list" id="routerResultList"></ul>
+        </div>
+        <div class="modal-col">
+          <div class="modal-col-title">PC</div>
+          <ul class="modal-list" id="pcResultList"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Random helpers ----------
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
+
+const ETHERS = ['ether1','ether2','ether3','ether4','ether5'];
+const HOSTNAMES = ['RTR-LAB2','Gerbang-Sekolah','Router-TJKT','RTR-Kelas3'];
+const DNS_OPTIONS = ['8.8.8.8','1.1.1.1'];
+
+// Random public-looking IP from class A, B, or C (no private/loopback ranges), no prefix.
+function randomClassfulIp() {
+  const cls = pick(['A','B','C']);
+  let first;
+  if (cls === 'A') { do { first = randInt(1,126); } while (first === 10); }
+  else if (cls === 'B') { do { first = randInt(128,191); } while (first === 172); }
+  else { first = randInt(193,223); } // skip 192 to avoid 192.168.x.x confusion
+  const o2 = randInt(1,254), o3 = randInt(1,254), o4 = randInt(1,254);
+  return `${first}.${o2}.${o3}.${o4}`;
+}
+function classfulMask(ip) {
+  const first = parseInt(ip.split('.')[0], 10);
+  if (first <= 126) return '255.0.0.0';
+  if (first <= 191) return '255.255.0.0';
+  return '255.255.255.0';
+}
+function maskToPrefixLen(mask) {
+  return mask.split('.').reduce((sum, o) => sum + (parseInt(o, 10) === 255 ? 8 : 0), 0);
+}
+function parseAddr(addrStr) {
+  const m = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\/(\d{1,2})$/.exec((addrStr || '').trim());
+  if (!m) return null;
+  return { ip: m[1], prefix: parseInt(m[2], 10) };
+}
+function networkBits(ip, mask) {
+  const ipO = ip.split('.').map(Number);
+  const maskO = mask.split('.').map(Number);
+  return ipO.map((o,i) => o & maskO[i]).join('.');
+}
+function ifaceDisplay(iface) {
+  return iface.charAt(0).toUpperCase() + iface.slice(1).replace('ether','Ether ').replace('Ether ', 'Ether');
+}
+
+function buildScenario() {
+  const ifaces = [...ETHERS].sort(() => Math.random() - 0.5);
+  const wanIface = ifaces[0];
+  const lanIface = ifaces[1];
+  const wanIp = randomClassfulIp();
+  const wanMask = classfulMask(wanIp);
+  const lanIp = randomClassfulIp();
+  const lanMask = classfulMask(lanIp);
+  const hostname = pick(HOSTNAMES);
+  const dns = pick(DNS_OPTIONS);
+  return { wanIface, lanIface, wanIp, wanMask, lanIp, lanMask, hostname, dns };
+}
+
+let scenario = buildScenario();
+
+// ---------- Virtual router state ----------
+let state = { identity: 'MikroTik', addresses: [], routes: [], nat: [], dns: null };
+
+// ---------- UI render ----------
+function renderBrief() {
+  document.getElementById('briefBox').innerHTML =
+    `&bull; Konfigurasikan router agar PC terhubung dengan internet<br>` +
+    `&bull; Ubah hostname menjadi <b>${scenario.hostname}</b><br>` +
+    `&bull; Atur alamat IP sesuai alamat yang diberikan di topologi<br>` +
+    `&bull; DNS yang digunakan: <b>${scenario.dns}</b>`;
+  document.getElementById('wanIfaceLabel').textContent = ifaceDisplay(scenario.wanIface);
+  document.getElementById('lanIfaceLabel').innerHTML = `${ifaceDisplay(scenario.lanIface)}<br>${scenario.lanIp}`;
+  document.getElementById('wanInfo').textContent = scenario.wanIp;
+}
+
+function renderTopology() {
+  document.getElementById('hostnameLabel').textContent = state.identity;
+  document.getElementById('terminalTitle').textContent = `Terminal — ${state.identity}`;
+  document.getElementById('promptSpan').textContent = `[admin@${state.identity}] >`;
+  const pcIpVal = document.getElementById('pcIp').value.trim();
+  document.getElementById('pcInfo').textContent = pcIpVal ? pcIpVal : '';
+}
+
+const ROUTER_CHECKS = [
+  { label: () => `Hostname`, test: s => s.identity === scenario.hostname },
+  { label: () => `IP Address ${scenario.wanIface}`, test: s => s.addresses.some(a => {
+      if (a.interface !== scenario.wanIface) return false;
+      const parsed = parseAddr(a.address);
+      if (!parsed) return false;
+      const mask = classfulMask(scenario.wanIp);
+      if (parsed.prefix !== maskToPrefixLen(mask)) return false;
+      if (parsed.ip === scenario.wanIp) return false;
+      return networkBits(parsed.ip, mask) === networkBits(scenario.wanIp, mask);
+    }) },
+  { label: () => `IP Address ${scenario.lanIface}`, test: s => s.addresses.some(a => {
+      if (a.interface !== scenario.lanIface) return false;
+      const parsed = parseAddr(a.address);
+      if (!parsed) return false;
+      return parsed.ip === scenario.lanIp && parsed.prefix === maskToPrefixLen(scenario.lanMask);
+    }) },
+  { label: () => `DNS`, test: s => s.dns === scenario.dns },
+  { label: () => `NAT`, test: s => s.nat.some(n => n.outInterface === scenario.wanIface) },
+  { label: () => `Gateway`, test: s => s.routes.some(r => r.gateway === scenario.wanIp) },
+];
+
+const PC_CHECKS = [
+  { label: () => `IP Address`, test: () => {
+      const ip = document.getElementById('pcIp').value.trim();
+      if (!ip) return false;
+      return networkBits(ip, scenario.lanMask) === networkBits(scenario.lanIp, scenario.lanMask) && ip !== scenario.lanIp;
+    } },
+  { label: () => `Subnetmask`, test: () => document.getElementById('pcMask').value.trim() === scenario.lanMask },
+  { label: () => `Gateway`, test: () => document.getElementById('pcGw').value.trim() === scenario.lanIp },
+  { label: () => `DNS`, test: () => document.getElementById('pcDns').value.trim() === scenario.dns },
+];
+
+const CHECKS = [...ROUTER_CHECKS, ...PC_CHECKS];
+
+function checkPcForm() {
+  return PC_CHECKS.every(c => c.test());
+}
+
+
+function computeScore() {
+  let doneCount = 0;
+  CHECKS.forEach(c => { if (c.test(state)) doneCount++; });
+  document.getElementById('scoreLine').innerHTML = `Skor: <b>${doneCount} / ${CHECKS.length}</b> target terpenuhi`;
+  const pill = document.getElementById('statusPill');
+  if (doneCount === CHECKS.length) {
+    pill.textContent = 'Terhubung ke Internet';
+    pill.classList.add('connected');
+  } else {
+    pill.textContent = 'Belum Terhubung';
+    pill.classList.remove('connected');
+  }
+  return doneCount;
+}
+
+function refreshAll() { renderTopology(); }
+
+// ---------- Terminal ----------
+const term = document.getElementById('terminal');
+function printLine(text, cls) {
+  const div = document.createElement('div');
+  div.className = cls || 'l-out';
+  div.textContent = text;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+function printCmd(cmd) {
+  const div = document.createElement('div');
+  div.className = 'l-cmd';
+  div.innerHTML = `<span class="prompt">[admin@${state.identity}] &gt;</span> ` + cmd.replace(/</g,'&lt;');
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+function parseParams(tokens) {
+  const params = {};
+  tokens.forEach(t => {
+    const eq = t.indexOf('=');
+    if (eq > -1) params[t.slice(0, eq)] = t.slice(eq + 1);
+  });
+  return params;
+}
+
+function runCommand(raw) {
+  const tokens = raw.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return;
+  const path = tokens[0];
+  const rest = tokens.slice(1);
+
+  if (path === '/system' && rest[0] === 'identity' && rest[1] === 'set') {
+    const p = parseParams(rest.slice(2));
+    if (p.name) { state.identity = p.name; printLine('', 'l-out'); refreshAll(); return; }
+    return;
+  }
+  if (path === '/ip' && rest[0] === 'address' && rest[1] === 'add') {
+    const p = parseParams(rest.slice(2));
+    if (!p.address || !p.interface || !ETHERS.includes(p.interface)) return;
+    state.addresses.push({ address: p.address, interface: p.interface });
+    printLine('', 'l-out'); refreshAll(); return;
+  }
+  if (path === '/ip' && rest[0] === 'address' && rest[1] === 'print') {
+    state.addresses.forEach((a, i) => printLine(` ${i}   ${a.address.padEnd(20)} ${a.interface}`, 'l-out'));
+    return;
+  }
+  if (path === '/ip' && rest[0] === 'route' && rest[1] === 'add') {
+    const p = parseParams(rest.slice(2));
+    if (!p.gateway) return;
+    state.routes.push({ gateway: p.gateway });
+    printLine('', 'l-out'); refreshAll(); return;
+  }
+  if (path === '/ip' && rest[0] === 'firewall' && rest[1] === 'nat' && rest[2] === 'add') {
+    const p = parseParams(rest.slice(3));
+    if (p.action !== 'masquerade' || !p['out-interface']) return;
+    state.nat.push({ outInterface: p['out-interface'] });
+    printLine('', 'l-out'); refreshAll(); return;
+  }
+  if (path === '/ip' && rest[0] === 'dns' && rest[1] === 'set') {
+    const p = parseParams(rest.slice(2));
+    if (p.servers) { state.dns = p.servers; printLine('', 'l-out'); refreshAll(); return; }
+    return;
+  }
+  if (path === '/interface' && rest[0] === 'print') {
+    ETHERS.forEach((e, i) => printLine(` ${i}  R  ${e}`, 'l-out'));
+    return;
+  }
+}
+
+// ---------- Input ----------
+const input = document.getElementById('cmdInput');
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const val = input.value;
+    if (val.trim()) { printCmd(val); runCommand(val); }
+    input.value = '';
+  }
+});
+
+// ---------- Result modal ----------
+function buildResultList(listEl, checks) {
+  listEl.innerHTML = '';
+  checks.forEach(c => {
+    const passed = c.test(state);
+    const li = document.createElement('li');
+    li.className = passed ? 'pass' : 'fail';
+    li.innerHTML = `<span class="ic">${passed ? '&#10003;' : '&#10005;'}</span>${c.label()}`;
+    listEl.appendChild(li);
+  });
+}
+function openResultModal() {
+  buildResultList(document.getElementById('routerResultList'), ROUTER_CHECKS);
+  buildResultList(document.getElementById('pcResultList'), PC_CHECKS);
+  const doneCount = computeScore();
+  const modalPill = document.getElementById('modalStatusPill');
+  if (doneCount === CHECKS.length) {
+    modalPill.textContent = 'Terhubung ke Internet';
+    modalPill.classList.add('connected');
+  } else {
+    modalPill.textContent = `Belum Terhubung (${doneCount}/${CHECKS.length})`;
+    modalPill.classList.remove('connected');
+  }
+  document.getElementById('modalOverlay').classList.add('show');
+}
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('show');
+});
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'modalOverlay') document.getElementById('modalOverlay').classList.remove('show');
+});
+
+// ---------- PC form + check button ----------
+['pcIp','pcMask','pcGw','pcDns'].forEach(id => {
+  document.getElementById(id).addEventListener('input', refreshAll);
+});
+document.getElementById('checkBtn').addEventListener('click', () => {
+  refreshAll();
+  openResultModal();
+});
+
+// ---------- Init ----------
+// ---------- Reset / new question ----------
+function resetAll() {
+  scenario = buildScenario();
+  state = { identity: 'MikroTik', addresses: [], routes: [], nat: [], dns: null };
+  term.innerHTML = '';
+  ['pcIp','pcMask','pcGw','pcDns'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('modalOverlay').classList.remove('show');
+  const pill = document.getElementById('statusPill');
+  pill.textContent = 'Belum Terhubung';
+  pill.classList.remove('connected');
+  renderBrief();
+  refreshAll();
+  input.value = '';
+  input.focus();
+}
+document.getElementById('resetBtn').addEventListener('click', resetAll);
+
+renderBrief();
+refreshAll();
+input.focus();
+</script>
+</body>
+</html>
