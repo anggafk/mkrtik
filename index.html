@@ -358,7 +358,6 @@
 
       <div class="check-area">
         <button class="check-btn" id="checkBtn">Cek Hasil</button>
-        <div class="score-line" id="scoreLine"></div>
       </div>
     </div>
   </div>
@@ -510,7 +509,6 @@ function checkPcForm() {
 function computeScore() {
   let doneCount = 0;
   CHECKS.forEach(c => { if (c.test(state)) doneCount++; });
-  document.getElementById('scoreLine').innerHTML = `Skor: <b>${doneCount} / ${CHECKS.length}</b> target terpenuhi`;
   const pill = document.getElementById('statusPill');
   if (doneCount === CHECKS.length) {
     pill.textContent = 'Terhubung ke Internet';
